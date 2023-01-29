@@ -8,6 +8,7 @@ import numpy as np
 from argparse import ArgumentParser
 
 TRIALS = 5
+PADDING = 5
 
 
 def generate_frames(video_file):
@@ -26,6 +27,76 @@ def generate_frames(video_file):
     frame_num = len(os.listdir(video_dir))
     print("Frames extracted:", frame_num)
     return frame_num
+
+
+def stitch_video(args, source_num, driving_num):
+    images = []
+    for i in range(min(source_num, driving_num)):
+        frame_name = str(i + 1).zfill(PADDING) + ".png"
+        source_frame = os.path.join("data", args.source, frame_name)
+        driving_frame = os.path.join("data", args.driving, frame_name)
+        result_frame = os.path.join(
+            "data", "result", args.source + "_" + args.driving + "_" + frame_name
+        )
+
+        source_img = cv2.imread(source_frame, cv2.IMREAD_COLOR)
+        driving_img = cv2.imread(driving_frame, cv2.IMREAD_COLOR)
+        result_img = cv2.imread(result_frame, cv2.IMREAD_COLOR)
+
+        # Result images defined to be 512x512
+        source_img = cv2.resize(source_img, (512, 512))
+        driving_img = cv2.resize(driving_img, (512, 512))
+        assert result_img.shape == driving_img.shape
+        assert result_img.shape == source_img.shape
+
+        source_img = cv2.putText(
+            source_img,
+            "SOURCE",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        driving_img = cv2.putText(
+            driving_img,
+            "DRIVING",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        result_img = cv2.putText(
+            result_img,
+            "RESULT",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
+        canvas = np.concatenate((source_img, driving_img), axis=1)
+        canvas = np.concatenate((canvas, result_img), axis=1)
+        images.append(canvas)
+
+    out_path = os.path.join(
+        "data", "result", args.source + "_" + args.driving + "." + args.format
+    )
+    out = cv2.VideoWriter(
+        out_path,
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        30,
+        (512 * 3, 512),
+    )
+    for image in images:
+        out.write(image)
+    out.release()
+    print("Stitched video saved:", out_path)
 
 
 if __name__ == "__main__":
@@ -63,7 +134,7 @@ if __name__ == "__main__":
 
     # Process frames
     for i in range(min(source_num, driving_num)):
-        num_padding = str(i + 1).zfill(5)
+        num_padding = str(i + 1).zfill(PADDING)
         frame_name = num_padding + ".png"
         headpose_name = num_padding + "_headpose.txt"
         landmark_name = num_padding + "_landmark.txt"
@@ -72,7 +143,9 @@ if __name__ == "__main__":
         src_landmark = os.path.join("data", "source", "FLAME", landmark_name)
         drv_headpose = os.path.join("data", "driving", "FLAME", headpose_name)
         drv_landmark = os.path.join("data", "driving", "FLAME", landmark_name)
-        result_name = os.path.join("data", "result", frame_name)
+        result_name = os.path.join(
+            "data", "result", args.source + "_" + args.driving + "_" + frame_name
+        )
 
         # Generate facial landmarks and head pose coefficients
         command = (
@@ -136,61 +209,4 @@ if __name__ == "__main__":
                 subprocess.check_call(command, shell=True, timeout=60)
 
     # Concat source, driving, and generated result videos
-    images = []
-    for i in range(min(source_num, driving_num)):
-        frame_name = str(i + 1).zfill(5) + ".png"
-        source_frame = os.path.join("data", args.source, frame_name)
-        driving_frame = os.path.join("data", args.driving, frame_name)
-        result_frame = os.path.join("data", "result", frame_name)
-
-        source_img = cv2.imread(source_frame, cv2.IMREAD_COLOR)
-        driving_img = cv2.imread(driving_frame, cv2.IMREAD_COLOR)
-        result_img = cv2.imread(result_frame, cv2.IMREAD_COLOR)
-        assert result_img.shape == driving_img.shape
-        assert result_img.shape == source_img.shape
-
-        source_img = cv2.putText(
-            source_img,
-            "SOURCE",
-            (50, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
-        driving_img = cv2.putText(
-            driving_img,
-            "DRIVING",
-            (50, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
-        result_img = cv2.putText(
-            result_img,
-            "RESULT",
-            (50, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
-
-        canvas = np.concatenate((source_img, driving_img), axis=1)
-        canvas = np.concatenate((canvas, result_img), axis=1)
-        images.append(canvas)
-
-    frame_height, frame_width, _ = images[0].shape
-    out = cv2.VideoWriter(
-        os.path.join("data", "result", args.source + ".mp4"),
-        cv2.VideoWriter_fourcc(*"MP4V"),
-        10,
-        (frame_width, frame_height),
-    )
-    for image in images:
-        out.write(image)
-    out.release()
+    stitch_video(args, source_num, driving_num)
