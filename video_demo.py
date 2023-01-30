@@ -29,10 +29,24 @@ def generate_frames(video_file):
     return frame_num
 
 
+def draw_landmark(img, lmk_file):
+    h, w, _ = img.shape
+    center_x, center_y = w / 2, h / 2
+
+    lmks = np.loadtxt(lmk_file)
+    for i in range(len(lmks)):
+        x, y = lmks[i]
+        rescale_x = int(center_x + x * center_x)
+        rescale_y = int(center_y + y * center_y)
+        img = cv2.circle(img, (rescale_x, rescale_y), 1, (0, 0, 255), 2)
+    return img
+
+
 def stitch_video(args, source_num, driving_num):
     images = []
     for i in range(min(source_num, driving_num)):
-        frame_name = str(i + 1).zfill(PADDING) + ".png"
+        num_padding = str(i + 1).zfill(PADDING)
+        frame_name = num_padding + ".png"
         source_frame = os.path.join("data", args.source, frame_name)
         driving_frame = os.path.join("data", args.driving, frame_name)
         result_frame = os.path.join(
@@ -48,6 +62,25 @@ def stitch_video(args, source_num, driving_num):
         driving_img = cv2.resize(driving_img, (512, 512))
         assert result_img.shape == driving_img.shape
         assert result_img.shape == source_img.shape
+
+        source_img = draw_landmark(
+            source_img,
+            os.path.join(
+                "data",
+                "source",
+                "FLAME",
+                args.source + "_" + num_padding + "_landmark.txt",
+            ),
+        )
+        driving_img = draw_landmark(
+            driving_img,
+            os.path.join(
+                "data",
+                "driving",
+                "FLAME",
+                args.driving + "_" + num_padding + "_landmark.txt",
+            ),
+        )
 
         source_img = cv2.putText(
             source_img,
@@ -139,10 +172,18 @@ if __name__ == "__main__":
         headpose_name = num_padding + "_headpose.txt"
         landmark_name = num_padding + "_landmark.txt"
 
-        src_headpose = os.path.join("data", "source", "FLAME", headpose_name)
-        src_landmark = os.path.join("data", "source", "FLAME", landmark_name)
-        drv_headpose = os.path.join("data", "driving", "FLAME", headpose_name)
-        drv_landmark = os.path.join("data", "driving", "FLAME", landmark_name)
+        src_headpose = os.path.join(
+            "data", "source", "FLAME", args.source + "_" + headpose_name
+        )
+        src_landmark = os.path.join(
+            "data", "source", "FLAME", args.source + "_" + landmark_name
+        )
+        drv_headpose = os.path.join(
+            "data", "driving", "FLAME", args.driving + "_" + headpose_name
+        )
+        drv_landmark = os.path.join(
+            "data", "driving", "FLAME", args.driving + "_" + landmark_name
+        )
         result_name = os.path.join(
             "data", "result", args.source + "_" + args.driving + "_" + frame_name
         )
