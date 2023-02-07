@@ -122,3 +122,14 @@ if __name__ == "__main__":
     im = tensor2im(visual_results["fake"])
     im = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
     cv2.imwrite(output_file_name, im)
+
+    # save landmark images
+    output_src_lmk_name = args.output_dir + "/src_lmk.png"
+    src_lmk = tensor2im(src_face["landmark_img"][2])
+    src_lmk = cv2.cvtColor(src_lmk, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(output_src_lmk_name, src_lmk)
+
+    output_drv_lmk_name = args.output_dir + "/drv_lmk.png"
+    drv_lmk = tensor2im(drv_face["landmark_img"][2])
+    drv_lmk = cv2.cvtColor(drv_lmk, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(output_drv_lmk_name, drv_lmk)
